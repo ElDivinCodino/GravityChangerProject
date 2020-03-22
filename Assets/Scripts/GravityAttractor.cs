@@ -11,7 +11,7 @@ public class GravityAttractor : MonoBehaviour
 
     public void Attract(Rigidbody body)
     {
-        gravityUp = body.transform.GetComponent<FirstPersonController>().GetRaycastHit().normal;
+        //gravityUp = body.transform.GetComponent<FirstPersonController>().GetRaycastHit().normal;
 
         // Apply downwards gravity to body
         body.AddForce(gravityUp * gravity);

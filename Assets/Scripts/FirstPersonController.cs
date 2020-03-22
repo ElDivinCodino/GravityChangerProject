@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-[RequireComponent(typeof(GravityBody))]
 public class FirstPersonController : MonoBehaviour
 {
 
@@ -10,19 +9,17 @@ public class FirstPersonController : MonoBehaviour
     public float mouseSensitivityY = 1;
     public float walkSpeed = 6;
     public float jumpForce = 220;
-    public LayerMask groundedMask;
+    public LayerMask groundMask;
+    public Transform groundCheck;
 
     // System vars
     bool grounded;
+    float groundDistance = 0.4f;
     Vector3 moveAmount;
     Vector3 smoothMoveVelocity;
     float verticalLookRotation;
     Transform cameraTransform;
     Rigidbody rb;
-    
-	Ray ray;
-	RaycastHit hit;
-	Vector3 pos;
 
     void Awake()
     {
@@ -59,21 +56,9 @@ public class FirstPersonController : MonoBehaviour
         }
 
         // Grounded check
-		ray = new Ray(transform.position, -transform.up);
-        
-		if (Physics.Raycast(ray, out hit, 10, groundedMask))
-        {
-			pos = hit.point;
-            grounded = true;
-        }
-        else
-        {
-            grounded = false;
-        }
+		grounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
     }
-
-	public RaycastHit GetRaycastHit() { return hit; }
 
     void FixedUpdate()
     {
