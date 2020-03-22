@@ -105,9 +105,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0eea8e4aa372cff45b49c7f0af141bb9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damage: 0
-  range: 0
-  impactForce: 0
+  damage: 300
+  range: 70
+  impactForce: 300
   fireRate: 0.5
   shootingCam: {fileID: 5366202304431498603}
   muzzleFlash: {fileID: 2251266731353023028}
@@ -231,7 +231,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 100
-  range: 30
+  range: 40
   impactForce: 30
   fireRate: 4
   shootingCam: {fileID: 5366202304431498603}
@@ -563,9 +563,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0eea8e4aa372cff45b49c7f0af141bb9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damage: 0
-  range: 0
-  impactForce: 0
+  damage: 30
+  range: 40
+  impactForce: 10
   fireRate: 2
   shootingCam: {fileID: 5366202304431498603}
   muzzleFlash: {fileID: 988248169523309046}
@@ -770,9 +770,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0eea8e4aa372cff45b49c7f0af141bb9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damage: 0
-  range: 0
-  impactForce: 0
+  damage: 20
+  range: 30
+  impactForce: 25
   fireRate: 8
   shootingCam: {fileID: 5366202304431498603}
   muzzleFlash: {fileID: 6349813894415676256}
@@ -903,7 +903,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 14b72244757befa4d838c92eaa8458b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rotationSpeedMultiplier: 5
+  rotationSpeedMultiplier: 3
+  gameManager: {fileID: 0}
+  rotationReference: {fileID: 8565015278251095459}
 --- !u!114 &8138914047898266598
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -916,14 +918,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 10b1f96d3ef790a4fb4d78cc7fa1bb2c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerCam: {fileID: 8565015278251095459}
+  head: {fileID: 8565015278251095459}
   orientation: {fileID: 1878561337520995435}
+  gameManager: {fileID: 0}
   moveSpeed: 4500
   maxSpeed: 20
   grounded: 0
-  whatIsGround:
+  groundMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 1024
   counterMovement: 0.175
   maxSlopeAngle: 35
   slideForce: 400
