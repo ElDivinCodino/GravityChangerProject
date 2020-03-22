@@ -2,9 +2,12 @@
 
 public class MoveCamera : MonoBehaviour {
 
-    public Transform player;
+    public Transform head;
+
+    float offset = 0.4f;
 
     void Update() {
-        transform.position = player.transform.position;
+        transform.position = head.position + transform.forward * offset;
+        transform.rotation = head.rotation;
     }
 }
