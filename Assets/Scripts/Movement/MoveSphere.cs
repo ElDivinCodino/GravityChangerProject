@@ -59,6 +59,9 @@ public class MoveSphere : MonoBehaviour
     float minGroundDotProduct, minStairsDotProduct;
     int stepsSinceLastGrounded, stepsSinceLastJump;
 
+    // Gravity-related stuff
+    Vector3 upAxis, rightAxis, forwardAxis;
+
 
     void OnValidate()
     {
@@ -69,6 +72,7 @@ public class MoveSphere : MonoBehaviour
     void Awake()
     {
         body = GetComponent<Rigidbody>();
+		body.useGravity = false;
         OnValidate();
     }
 
@@ -87,18 +91,16 @@ public class MoveSphere : MonoBehaviour
 
         if (playerInputSpace)	// If the movement is relative to a transform
         {
-            Vector3 forward = playerInputSpace.forward;
-            forward.y = 0f;
-            forward.Normalize();
-            Vector3 right = playerInputSpace.right;
-            right.y = 0f;
-            right.Normalize();
-            desiredVelocity = (forward * playerInput.y + right * playerInput.x) * maxSpeed;
+            rightAxis = ProjectDirectionOnPlane(playerInputSpace.right, upAxis);
+            forwardAxis = ProjectDirectionOnPlane(playerInputSpace.forward, upAxis);
         }
-        else	// Otherwise the movement is relative to World Space
+        else // Otherwise the movement is relative to World Space
         {
-            desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
+            rightAxis = ProjectDirectionOnPlane(Vector3.right, upAxis);
+            forwardAxis = ProjectDirectionOnPlane(Vector3.forward, upAxis);
         }
+
+        desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
 
         // |= because we could have pressed the button during a frame out of fixedUpdate, hence the jump could be not happened but the variable resets to false anyway the next frame
         desiredJump |= Input.GetButtonDown("Jump");
@@ -106,14 +108,18 @@ public class MoveSphere : MonoBehaviour
 
     void FixedUpdate()
     {
+        Vector3 gravity = CustomGravity.GetGravity(body.position, out upAxis);
+
         UpdateState();
         AdjustVelocity();
 
         if (desiredJump)
         {
             desiredJump = false;
-            Jump();
+            Jump(gravity);
         }
+
+		velocity += gravity * Time.deltaTime;
 
         body.velocity = velocity;
         ClearState();
@@ -148,14 +154,14 @@ public class MoveSphere : MonoBehaviour
         }
         else
         {
-            contactNormal = Vector3.up;
+            contactNormal = upAxis;
         }
     }
 
     void AdjustVelocity()
     {
-        Vector3 xAxis = ProjectOnContactPlane(Vector3.right).normalized;
-        Vector3 zAxis = ProjectOnContactPlane(Vector3.forward).normalized;
+        Vector3 xAxis = ProjectDirectionOnPlane(rightAxis, contactNormal);
+        Vector3 zAxis = ProjectDirectionOnPlane(forwardAxis, contactNormal);
 
         float currentX = Vector3.Dot(velocity, xAxis);
         float currentZ = Vector3.Dot(velocity, zAxis);
@@ -171,7 +177,7 @@ public class MoveSphere : MonoBehaviour
         velocity += xAxis * (newX - currentX) + zAxis * (newZ - currentZ);
     }
 
-    void Jump()
+    void Jump(Vector3 gravity)
     {
         Vector3 jumpDirection;
 
@@ -202,9 +208,9 @@ public class MoveSphere : MonoBehaviour
 
         stepsSinceLastJump = 0;
         jumpPhase += 1;
-        float jumpSpeed = Mathf.Sqrt(-2f * Physics.gravity.y * jumpHeight);
+        float jumpSpeed = Mathf.Sqrt(2f * gravity.magnitude * jumpHeight);
 
-        jumpDirection = (jumpDirection + Vector3.up).normalized; // To increase vertical speed when jumping off a vertical wall
+        jumpDirection = (jumpDirection + upAxis).normalized; // To increase vertical speed when jumping off a vertical wall
 
         float alignedSpeed = Vector3.Dot(velocity, jumpDirection);
         if (alignedSpeed > 0f)
@@ -233,12 +239,14 @@ public class MoveSphere : MonoBehaviour
         for (int i = 0; i < collision.contactCount; i++)
         {
             Vector3 normal = collision.GetContact(i).normal;
-            if (normal.y >= minDot)
+            float upDot = Vector3.Dot(upAxis, normal);
+
+            if (upDot >= minDot)
             {
                 groundContactCount += 1;
                 contactNormal += normal;
             }
-            else if (normal.y > -0.01f) // The dot product of a perfectly vertical wall should be zero, but let's be a bit lenient.
+            else if (upDot > -0.01f) // The dot product of a perfectly vertical wall should be zero, but let's be a bit lenient.
             {
                 steepContactCount += 1;
                 steepNormal += normal;
@@ -247,9 +255,9 @@ public class MoveSphere : MonoBehaviour
     }
 
     // Align our desired velocity with the ground by projecting the velocity on a plane
-    Vector3 ProjectOnContactPlane(Vector3 vector)
+    Vector3 ProjectDirectionOnPlane(Vector3 direction, Vector3 normal)
     {
-        return vector - contactNormal * Vector3.Dot(vector, contactNormal);
+        return (direction - normal * Vector3.Dot(direction, normal)).normalized;
     }
 
     // Keeps player stuck to the ground if needed 
@@ -267,12 +275,13 @@ public class MoveSphere : MonoBehaviour
             return false;
         }
 
-        if (!Physics.Raycast(body.position, Vector3.down, out RaycastHit hit, probeDistance, probeMask))
+        if (!Physics.Raycast(body.position, -upAxis, out RaycastHit hit, probeDistance, probeMask))
         {
             return false;
         }
 
-        if (hit.normal.y < GetMinDot(hit.collider.gameObject.layer))
+        float upDot = Vector3.Dot(upAxis, hit.normal);
+        if (upDot < GetMinDot(hit.collider.gameObject.layer))
         {
             return false;
         }
@@ -304,7 +313,9 @@ public class MoveSphere : MonoBehaviour
         if (steepContactCount > 1)
         {
             steepNormal.Normalize();
-            if (steepNormal.y >= minGroundDotProduct)
+
+            float upDot = Vector3.Dot(upAxis, steepNormal);
+            if (upDot >= minGroundDotProduct)
             {
                 steepContactCount = 0;
                 groundContactCount = 1;

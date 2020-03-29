@@ -6,15 +6,15 @@ public class OrbitCamera : MonoBehaviour
     [SerializeField]
     Transform focus = default;
 
-    [Tooltip("To relax the movement of the camera without sticking to the player each frame")]
+    [Tooltip("To relax the movement of the camera without sticking to the player each frame.")]
     [SerializeField, Min(0f)]
     float focusRadius = 1f;
 
-    [Tooltip("Speed of recentering the focus on the target")]
+    [Tooltip("Speed of recentering the focus on the target.")]
     [SerializeField, Range(0f, 1f)]
     float focusCentering = 0.75f;
 
-    [Tooltip("Speed of aligning the focus on the target's direction")]
+    [Tooltip("Speed of aligning the focus on the target's direction.")]
     [SerializeField, Min(0f)]
     float alignDelay = 5f;
 
@@ -22,9 +22,13 @@ public class OrbitCamera : MonoBehaviour
     [SerializeField, Range(0f, 90f)]
     float alignSmoothRange = 45f;
 
-    [Tooltip("Camera rotation speed in degrees per second")]
+    [Tooltip("Camera rotation speed in degrees per second.")]
     [SerializeField, Range(1f, 360f)]
     float rotationSpeed = 90f;
+
+    [Tooltip("How fast the camera adjusts its up vector when changing gravity.")]
+    [SerializeField, Min(0f)]
+    float upAlignmentSpeed = 360f;
 
     [SerializeField, Range(-89f, 89f)]
     float minVerticalAngle = -30f, maxVerticalAngle = 60f;
@@ -34,7 +38,7 @@ public class OrbitCamera : MonoBehaviour
 
     [Tooltip("Layers of geometries that the camera can intersect.")]
     [SerializeField]
-	LayerMask obstructionMask = -1;
+    LayerMask obstructionMask = -1;
 
     public bool invertYAxis = false, invertXAxis = false;
 
@@ -43,11 +47,15 @@ public class OrbitCamera : MonoBehaviour
     float lastManualRotationTime;
     Camera regularCamera;
 
+    // Gravity-related stuff
+    Quaternion gravityAlignment = Quaternion.identity;
+    Quaternion orbitRotation;
+
     void Awake()
     {
         regularCamera = GetComponent<Camera>();
         focusPoint = focus.position;
-        transform.localRotation = Quaternion.Euler(orbitAngles);
+        transform.localRotation = orbitRotation = Quaternion.Euler(orbitAngles);
     }
 
     void OnValidate()
@@ -60,33 +68,32 @@ public class OrbitCamera : MonoBehaviour
 
     void LateUpdate()
     {
+        UpdateGravityAlignment();
         UpdateFocusPoint();
-        ManualRotation();
-        Quaternion lookRotation;
+
         if (ManualRotation() || AutomaticRotation())
         {
             ConstrainAngles();
-            lookRotation = Quaternion.Euler(orbitAngles);
+            orbitRotation = Quaternion.Euler(orbitAngles);
         }
-        else
-        {
-            lookRotation = transform.localRotation;
-        }
+
+        Quaternion lookRotation = gravityAlignment * orbitRotation;
+
         Vector3 lookDirection = lookRotation * Vector3.forward;
         Vector3 lookPosition = focusPoint - lookDirection * distance;
 
         Vector3 rectOffset = lookDirection * regularCamera.nearClipPlane;
-		Vector3 rectPosition = lookPosition + rectOffset;
-		Vector3 castFrom = focus.position;
-		Vector3 castLine = rectPosition - castFrom;
-		float castDistance = castLine.magnitude;
-		Vector3 castDirection = castLine / castDistance;
+        Vector3 rectPosition = lookPosition + rectOffset;
+        Vector3 castFrom = focus.position;
+        Vector3 castLine = rectPosition - castFrom;
+        float castDistance = castLine.magnitude;
+        Vector3 castDirection = castLine / castDistance;
 
         // check if camera collides with the environment and in case reduce the distance to the player
         if (Physics.BoxCast(castFrom, CameraHalfExtends, castDirection, out RaycastHit hit, lookRotation, castDistance, obstructionMask))
         {
             rectPosition = castFrom + castDirection * hit.distance;
-			lookPosition = rectPosition - rectOffset;
+            lookPosition = rectPosition - rectOffset;
         }
 
         transform.SetPositionAndRotation(lookPosition, lookRotation);
@@ -135,8 +142,7 @@ public class OrbitCamera : MonoBehaviour
 
     void ConstrainAngles()
     {
-        orbitAngles.x =
-            Mathf.Clamp(orbitAngles.x, minVerticalAngle, maxVerticalAngle);
+        orbitAngles.x = Mathf.Clamp(orbitAngles.x, minVerticalAngle, maxVerticalAngle);
 
         if (orbitAngles.y < 0f)
         {
@@ -155,7 +161,8 @@ public class OrbitCamera : MonoBehaviour
             return false;
         }
 
-        Vector2 movement = new Vector2(focusPoint.x - previousFocusPoint.x, focusPoint.z - previousFocusPoint.z);
+        Vector3 alignedDelta = Quaternion.Inverse(gravityAlignment) * (focusPoint - previousFocusPoint);
+        Vector2 movement = new Vector2(alignedDelta.x, alignedDelta.z);
 
         float movementDeltaSqr = movement.sqrMagnitude;
         if (movementDeltaSqr < 0.000001f)
@@ -184,7 +191,7 @@ public class OrbitCamera : MonoBehaviour
     static float GetAngle(Vector2 direction)
     {
         float angle = Mathf.Acos(direction.y) * Mathf.Rad2Deg;
-        return direction.x < 0f ? 360f - angle : angle; ;
+        return direction.x < 0f ? 360f - angle : angle;
     }
 
     Vector3 CameraHalfExtends
@@ -198,6 +205,26 @@ public class OrbitCamera : MonoBehaviour
             halfExtends.x = halfExtends.y * regularCamera.aspect;
             halfExtends.z = 0f;
             return halfExtends;
+        }
+    }
+
+    void UpdateGravityAlignment()
+    {
+        Vector3 fromUp = gravityAlignment * Vector3.up;
+        Vector3 toUp = CustomGravity.GetUpAxis(focusPoint);
+
+        float dot = Mathf.Clamp(Vector3.Dot(fromUp, toUp), -1f, 1f);
+        float angle = Mathf.Acos(dot) * Mathf.Rad2Deg;
+        float maxAngle = upAlignmentSpeed * Time.deltaTime;
+
+        Quaternion newAlignment = Quaternion.FromToRotation(fromUp, toUp) * gravityAlignment;
+        if (angle <= maxAngle)
+        {
+            gravityAlignment = newAlignment;
+        }
+        else
+        {
+            gravityAlignment = Quaternion.Slerp(gravityAlignment, newAlignment, maxAngle / angle);
         }
     }
 }
