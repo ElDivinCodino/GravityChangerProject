@@ -9,10 +9,12 @@ public class GravityPlane : GravitySource
     [SerializeField, Min(0f)]
     float range = 1f;
 
+
     public override Vector3 GetGravity(Vector3 position)
     {
         Vector3 up = transform.up;
         float distance = Vector3.Dot(up, position - transform.position);
+        
         if (distance > range)
         {
             return Vector3.zero;
