@@ -7,14 +7,14 @@ public class GameManager : MonoBehaviour
     [Tooltip("In seconds")]
     public float gravityInversionCooldown;
 
-    //GravityChanger[] objects;
+    GravitySource[] objects;
 
     bool gravityInverted = false;
     bool canInvertGravity = true;
 
     void Start() 
     {
-        //objects = GameObject.FindObjectsOfType(typeof(GravityChanger)) as GravityChanger[];
+        objects = GameObject.FindObjectsOfType(typeof(GravitySource)) as GravitySource[];
     }
 
     // Update is called once per frame
@@ -30,17 +30,13 @@ public class GameManager : MonoBehaviour
 
     private void InvertGravity()
     {
-        Physics.gravity *= -1;
+        foreach(GravitySource g in objects)
+        {
+            g.enabled = !g.enabled;
+        }
         gravityInverted = !gravityInverted;
-
-        RotateObjects();
     }
 
-    private void RotateObjects()
-    {
-        // foreach(GravityChanger g in objects)
-        //     g.RotateToGravity();
-    }
 
     public bool IsGravityInverted()
     {
